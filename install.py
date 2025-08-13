@@ -13,8 +13,8 @@ import filecmp
 
 #最新版openresty
 
-openresty_pkg_url = 'https://openresty.org/download/openresty-1.15.8.1.tar.gz'
-openresty_pkg = 'openresty-1.15.8.1.tar.gz'
+openresty_pkg_url = 'https://openresty.org/download/openresty-1.27.1.2.tar.gz'
+openresty_pkg = 'openresty-1.27.1.2.tar.gz'
 
 work_path = os.getcwd()
 
