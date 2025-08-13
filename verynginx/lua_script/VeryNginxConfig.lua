@@ -11,6 +11,10 @@ _M.config_hash = nil
 
 _M["configs"] = {}
 
+
+
+
+
 --------------default config------------
 
 _M.configs["config_version"] = "0.36"
@@ -140,6 +144,25 @@ _M.configs["summary_temporary_period"] = 60
 ----------------------Config End-------------
 
 ------------------Config Updater----------------------
+
+local lfs_ok, lfs = pcall(require, "lfs")
+
+local function dirname(p)
+    return p:match("^(.*)/[^/]+$") or "."
+end
+
+local function ensure_dir(dir)
+    if lfs_ok then
+        local st = lfs.attributes(dir)
+        if st and st.mode == "directory" then return true end
+        return lfs.mkdir(dir)
+    else
+        -- 退而求其次；返回值在 Lua5.1 下为 true/nil 或 0/非0，统一判断
+        local ok = os.execute(string.format('mkdir -p %q', dir))
+        return ok == true or ok == 0
+    end
+end
+
 
 function _M.version_updater_02( configs )
     configs['browser_verify_enable'] = false
@@ -336,10 +359,10 @@ function _M.set()
 
     local new_config_json_escaped_base64 = args['config']
     local new_config_json_escaped = ngx.decode_base64( new_config_json_escaped_base64 )
-    --ngx.log(ngx.STDERR,new_config_json_escaped)
+    ngx.log(ngx.STDERR,new_config_json_escaped)
    
     local new_config_json = ngx.unescape_uri( new_config_json_escaped )
-    --ngx.log(ngx.STDERR,new_config_json)
+    ngx.log(ngx.STDERR,new_config_json)
 
     local new_config = json.decode( new_config_json )
 
@@ -384,25 +407,38 @@ function _M.set_config_metadata( config_table )
 
 end
 
-function _M.dump_to_file( config_table )
 
+function _M.dump_to_file( config_table )
     _M.set_config_metadata( config_table )
 
-    local config_data = dkjson.encode( config_table , {indent=true} ) --must use dkjson at here because it can handle the metadata
+    local config_data = dkjson.encode( config_table , {indent=true} )
     local config_dump_path = _M.home_path() .. "/configs/config.json"
-    
-    --ngx.log(ngx.STDERR,config_dump_path)
-    local file, err = io.open( config_dump_path, "w")
-    if file ~= nil then
-        file:write(config_data)
-        file:close()
-        --update config hash in shared dict
-        ngx.shared.status:set('vn_config_hash', ngx.md5(config_data) )
-        return true
-    else
-        return false, "open file failed"
+    local dir = dirname(config_dump_path)
+
+    -- 先确保目录存在
+    local ok = ensure_dir(dir)
+    if not ok then
+        ngx.log(ngx.ERR, "create config dir failed: ", dir)
+        return false, "create config dir failed: " .. dir
     end
 
+    -- 以更清晰的错误返回
+    local file, err = io.open(config_dump_path, "w")
+    if not file then
+        ngx.log(ngx.ERR, "open file failed: ", err, " path=", config_dump_path)
+        return false, "open file failed: " .. tostring(err) .. " path=" .. config_dump_path
+    end
+
+    file:write(config_data)
+    file:close()
+
+    -- 更新 hash
+    if ngx.shared.status then
+        ngx.shared.status:set('vn_config_hash', ngx.md5(config_data))
+    else
+        ngx.log(ngx.WARN, "shared dict 'status' is not defined; config hash not stored")
+    end
+    return true
 end
 
 --auto load config from json file

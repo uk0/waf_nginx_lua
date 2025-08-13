@@ -31,6 +31,8 @@ RUN groupadd -r nginx && useradd -r -g nginx nginx
 # 安装 Python 依赖
 RUN python3 install.py install
 
+RUN touch /opt/verynginx/verynginx/configs/config.json && chmod -R 777 /opt/verynginx/verynginx/configs/config.json
+
 # 暴露端口
 EXPOSE 80
 

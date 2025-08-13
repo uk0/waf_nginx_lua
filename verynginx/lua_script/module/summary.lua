@@ -150,7 +150,8 @@ function _M.report()
     local uri_report = {}
     local collect_report = {}
     local record_key = nil
-    local status = nil 
+    local record_table = nil
+    local status = nil
     local size = nil 
     local time = nil 
     local count = nil
